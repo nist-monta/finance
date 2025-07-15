@@ -1,0 +1,3 @@
+([('app',
+   '/Users/nist/Projects/finance/bank-reconciliation/dist/app',
+   'EXECUTABLE')],)
