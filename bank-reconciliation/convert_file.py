@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import xml.etree.ElementTree as ET
+import re
 
 # Directory containing the XML and NDA files
 input_dir = 'CA XML Account statement extended'
@@ -178,11 +179,19 @@ for fname in all_files:
 
 if df_list:
     df_all = pd.concat(df_list, ignore_index=True)
-    # Remove duplicate columns (keep only the most specific version)
-    columns_to_keep = []
-    for col in df_all.columns:
-        if col not in columns_to_keep:
-            columns_to_keep.append(col)
+    # Add 'Invoice Payment' column based on debtor_name
+    invoice_exclude = ['ADYEN', 'U.S. BANK', 'Stripe', 'ELAVON', 'Adyen']
+    def is_invoice_payment(debtor_name):
+        if pd.isna(debtor_name):
+            return True
+        for excl in invoice_exclude:
+            if excl.lower() in str(debtor_name).lower():
+                return False
+        return True
+    if 'debtor_name' in df_all.columns:
+        df_all['Invoice Payment'] = df_all['debtor_name'].apply(is_invoice_payment)
+    else:
+        df_all['Invoice Payment'] = True
     # User-specified columns
     preferred_order = [
         'booking_date', 'value_date', 'amount', 'currency', 'credit_debit',
@@ -191,6 +200,24 @@ if df_list:
         'instructed_amount', 'transaction_amount', 'debtor_address',
         'source_currency', 'target_currency', 'exchange_rate'
     ]
+    # Add 'Invoice Payment' to preferred order if not present
+    if 'Invoice Payment' not in preferred_order:
+        preferred_order.append('Invoice Payment')
+    # Add new columns for invoice extraction
+    def extract_invoice_number(description):
+        if pd.isna(description):
+            return ''
+        match = re.search(r'(?<!\d)(\d{6,7})(?!\d)', str(description))
+        return match.group(1) if match else ''
+    df_all['Inv.no.'] = df_all['description'].apply(extract_invoice_number) if 'description' in df_all.columns else ''
+    def note_for_invoice(inv_no):
+        return 'Inv.no. fetched via Python' if inv_no else ''
+    df_all['Note'] = df_all['Inv.no.'].apply(note_for_invoice)
+    df_all['Comment'] = ''
+    # Add new columns to preferred_order if not present
+    for col in ['Inv.no.', 'Note', 'Comment']:
+        if col not in preferred_order:
+            preferred_order.append(col)
     # Only keep columns that exist in the DataFrame
     final_order = [col for col in preferred_order if col in df_all.columns]
     df_all = df_all[final_order]
