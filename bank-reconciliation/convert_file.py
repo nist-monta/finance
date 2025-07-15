@@ -77,15 +77,6 @@ def extract_from_xml(xml_file_path):
         creditor_name = tx_dtls.find('ns:RltdPties/ns:Cdtr/ns:Nm', ns)
         if creditor_name is not None and creditor_name.text:
             data['creditor_name'] = creditor_name.text.strip()
-        debtor_bic = tx_dtls.find('ns:RltdAgts/ns:DbtrAgt/ns:FinInstnId/ns:BIC', ns)
-        if debtor_bic is not None and debtor_bic.text:
-            data['debtor_bank_bic'] = debtor_bic.text.strip()
-        debtor_bank_name = tx_dtls.find('ns:RltdAgts/ns:DbtrAgt/ns:FinInstnId/ns:Nm', ns)
-        if debtor_bank_name is not None and debtor_bank_name.text:
-            data['debtor_bank_name'] = debtor_bank_name.text.strip()
-        debtor_bank_country = tx_dtls.find('ns:RltdAgts/ns:DbtrAgt/ns:FinInstnId/ns:PstlAdr/ns:Ctry', ns)
-        if debtor_bank_country is not None and debtor_bank_country.text:
-            data['debtor_bank_country'] = debtor_bank_country.text.strip()
         ustrd_elements = tx_dtls.findall('.//ns:Ustrd', ns)
         if ustrd_elements:
             data['description'] = ' | '.join([elem.text.strip() for elem in ustrd_elements if elem.text and elem.text.strip()])
@@ -192,20 +183,16 @@ if df_list:
     for col in df_all.columns:
         if col not in columns_to_keep:
             columns_to_keep.append(col)
-    # Reorder columns for better readability
+    # User-specified columns
     preferred_order = [
-        'transaction_id', 'transaction_reference', 'booking_date', 'value_date',
-        'amount', 'currency', 'credit_debit', 'status',
-        'transaction_type', 'transaction_family', 'transaction_subfamily',
-        'debtor_name', 'creditor_name', 'description',
-        'debtor_bank_bic', 'debtor_bank_name', 'debtor_bank_country',
-        'account_iban', 'account_currency', 'account_owner', 'account_servicer_bic',
-        'statement_id', 'statement_date', 'source_file'
+        'booking_date', 'value_date', 'amount', 'currency', 'credit_debit',
+        'debtor_name', 'creditor_name', 'description', 'debtor_bank_bic',
+        'debtor_bank_name', 'debtor_bank_country', 'account_iban', 'account_currency',
+        'instructed_amount', 'transaction_amount', 'debtor_address',
+        'source_currency', 'target_currency', 'exchange_rate'
     ]
-    balance_cols = [col for col in df_all.columns if col.startswith('opening_balance_') or col.startswith('closing_balance_')]
-    preferred_order.extend(balance_cols)
-    remaining_cols = [col for col in df_all.columns if col not in preferred_order]
-    final_order = [col for col in preferred_order if col in df_all.columns] + remaining_cols
+    # Only keep columns that exist in the DataFrame
+    final_order = [col for col in preferred_order if col in df_all.columns]
     df_all = df_all[final_order]
     pd.set_option('display.max_columns', None)
     pd.set_option('display.width', None)
