@@ -13,13 +13,20 @@ This is a finance automation project with tools for processing financial documen
 
 The project consists of two main Python applications:
 
-### PDF Processing Application (`app.py`)
-- GUI-based PDF to text converter using tkinter
-- Extracts text from PDF files using pdfplumber
-- Saves extracted text to .txt files for analysis
-- Uses pandas for potential Excel export (currently saves as text)
+### XML/NDA to CSV Converter (`app.py`)
+- GUI-based XML and NDA file converter using tkinter
+- Parses ISO 20022 XML bank statements and NDA files
+- Extracts comprehensive transaction data including:
+  - Account information (IBAN, currency, owner, servicer)
+  - Transaction details (amounts, dates, references, descriptions)
+  - Related parties (debtor/creditor names, bank information)
+  - Statement metadata and balances
+- Supports multiple file selection and batch processing
+- Outputs processed data to CSV format using pandas
+- Includes smart column ordering for better readability
 
 ### Bank Statement XML Processor (`convert_file.py`) 
+- Command-line version of XML parser
 - Parses ISO 20022 XML bank statements
 - Flattens XML structure into tabular format
 - Extracts transaction details from nested XML entries
@@ -37,18 +44,18 @@ python3 -m venv venv
 source venv/bin/activate
 
 # Install required packages
-pip install pandas pdfplumber tkinter xml
+pip install pandas
 ```
 
 ## Running Applications
 
-### PDF Converter
+### XML/NDA to CSV Converter (GUI)
 ```bash
 cd bank-reconciliation
 python3 app.py
 ```
 
-### XML Bank Statement Processor
+### XML Bank Statement Processor (Command Line)
 ```bash
 cd bank-reconciliation
 python3 convert_file.py
@@ -56,15 +63,14 @@ python3 convert_file.py
 
 ## File Structure
 
-- `app.py`: PDF to text extraction with GUI
-- `convert_file.py`: XML bank statement parser
+- `app.py`: XML/NDA to CSV converter with GUI
+- `convert_file.py`: Command-line XML bank statement parser
 - `output.csv`: Generated CSV output from XML processing
 - `CA XML Account statement extended_0220736246_20250715.xml`: Sample bank statement XML file
 
 ## Key Dependencies
 
 - `pandas`: Data manipulation and CSV export
-- `pdfplumber`: PDF text extraction
 - `tkinter`: GUI framework (built into Python)
 - `xml.etree.ElementTree`: XML parsing (built into Python)
 
