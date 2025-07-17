@@ -3,13 +3,6 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 import re
 
-# Directory containing the XML and NDA files
-input_dir = 'CA XML Account statement extended'
-
-# List all .xml and .nda files in the directory
-all_files = [f for f in os.listdir(input_dir) if f.endswith('.xml') or f.endswith('.nda')]
-
-# Function to extract data from a single XML/NDA file
 def extract_from_xml(xml_file_path):
     tree = ET.parse(xml_file_path)
     root = tree.getroot()
@@ -166,19 +159,8 @@ def extract_from_xml(xml_file_path):
             data.append(row)
     return pd.DataFrame(data)
 
-# Process all files and concatenate results
-df_list = []
-for fname in all_files:
-    fpath = os.path.join(input_dir, fname)
-    try:
-        df = extract_from_xml(fpath)
-        df_list.append(df)
-        print(f"Processed: {fname} ({len(df)} rows)")
-    except Exception as e:
-        print(f"Error processing {fname}: {e}")
-
-if df_list:
-    df_all = pd.concat(df_list, ignore_index=True)
+def process_dataframe(df_all):
+    """Process the concatenated dataframe with invoice logic and column filtering"""
     # Add 'Invoice Payment' column based on debtor_name
     invoice_exclude = ['ADYEN', 'U.S. BANK', 'Stripe', 'ELAVON', 'Adyen']
     def is_invoice_payment(debtor_name):
@@ -192,17 +174,16 @@ if df_list:
         df_all['Invoice Payment'] = df_all['debtor_name'].apply(is_invoice_payment)
     else:
         df_all['Invoice Payment'] = True
-    # User-specified columns
+    
+    # User-specified columns - only keep these specific columns
     preferred_order = [
         'booking_date', 'value_date', 'amount', 'currency', 'credit_debit',
         'debtor_name', 'creditor_name', 'description', 'debtor_bank_bic',
         'debtor_bank_name', 'debtor_bank_country', 'account_iban', 'account_currency',
         'instructed_amount', 'transaction_amount', 'debtor_address',
-        'source_currency', 'target_currency', 'exchange_rate'
+        'source_currency', 'target_currency', 'exchange_rate', 'Invoice Payment'
     ]
-    # Add 'Invoice Payment' to preferred order if not present
-    if 'Invoice Payment' not in preferred_order:
-        preferred_order.append('Invoice Payment')
+    
     # Add new columns for invoice extraction
     def extract_invoice_number(description):
         if pd.isna(description):
@@ -210,24 +191,56 @@ if df_list:
         match = re.search(r'(?<!\d)(\d{6,7})(?!\d)', str(description))
         return match.group(1) if match else ''
     df_all['Inv.no.'] = df_all['description'].apply(extract_invoice_number) if 'description' in df_all.columns else ''
+    
     def note_for_invoice(inv_no):
         return 'Inv.no. fetched via Python' if inv_no else ''
     df_all['Note'] = df_all['Inv.no.'].apply(note_for_invoice)
     df_all['Comment'] = ''
+    
     # Add new columns to preferred_order if not present
     for col in ['Inv.no.', 'Note', 'Comment']:
         if col not in preferred_order:
             preferred_order.append(col)
+    
     # Only keep columns that exist in the DataFrame
     final_order = [col for col in preferred_order if col in df_all.columns]
     df_all = df_all[final_order]
-    pd.set_option('display.max_columns', None)
-    pd.set_option('display.width', None)
-    print(df_all.head())
-    output_csv = 'output_all.csv'
-    df_all.to_csv(output_csv, index=False)
-    print(f"\nData saved to: {output_csv}")
-    print(f"Total columns extracted: {len(df_all.columns)}")
-    print(f"Total rows: {len(df_all)}")
-else:
-    print("No data extracted from any files.")
+    
+    return df_all
+
+def main():
+    """Main function to process files from directory"""
+    # Directory containing the XML and NDA files
+    input_dir = 'CA XML Account statement extended'
+    
+    # List all .xml and .nda files in the directory
+    all_files = [f for f in os.listdir(input_dir) if f.endswith('.xml') or f.endswith('.nda')]
+    
+    # Process all files and concatenate results
+    df_list = []
+    for fname in all_files:
+        fpath = os.path.join(input_dir, fname)
+        try:
+            df = extract_from_xml(fpath)
+            df_list.append(df)
+            print(f"Processed: {fname} ({len(df)} rows)")
+        except Exception as e:
+            print(f"Error processing {fname}: {e}")
+    
+    if df_list:
+        df_all = pd.concat(df_list, ignore_index=True)
+        df_all = process_dataframe(df_all)
+        
+        pd.set_option('display.max_columns', None)
+        pd.set_option('display.width', None)
+        print(df_all.head())
+        output_csv = 'output_all.csv'
+        df_all.to_csv(output_csv, index=False)
+        print(f"\nData saved to: {output_csv}")
+        print(f"Total columns extracted: {len(df_all.columns)}")
+        print(f"Total rows: {len(df_all)}")
+    else:
+        print("No data extracted from any files.")
+
+if __name__ == "__main__":
+    main()
