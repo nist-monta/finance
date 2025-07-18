@@ -9,7 +9,7 @@ from convert_file import extract_from_xml, process_dataframe
 # --- GUI logic ---
 def select_and_convert_files():
     file_paths = filedialog.askopenfilenames(
-        title="Select XML/NDA Files",
+        title="Select CAMT053 files",
         filetypes=[("XML/NDA Files", "*.xml *.nda")]
     )
     if not file_paths:
@@ -27,8 +27,8 @@ def select_and_convert_files():
         df_all = process_dataframe(df_all)
         output_csv = filedialog.asksaveasfilename(
             defaultextension=".csv",
-            filetypes=[("CSV Files", "*.csv")],
-            title="Save Output CSV As"
+            filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")],
+            title="Save Output CSV As",
         )
         if not output_csv:
             return
@@ -39,10 +39,10 @@ def select_and_convert_files():
 
 # --- GUI Setup ---
 root = tk.Tk()
-root.title("XML/NDA to CSV Converter")
+root.title("CAMT053 Bank Reconciliation")
 root.geometry("350x180")
 
-btn = tk.Button(root, text="Select XML/NDA Files", command=select_and_convert_files, width=30, height=2)
+btn = tk.Button(root, text="Select CAMT053 Files", command=select_and_convert_files, width=30, height=2)
 btn.pack(pady=50)
 
 root.mainloop()
