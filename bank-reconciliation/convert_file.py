@@ -161,19 +161,28 @@ def extract_from_xml(xml_file_path):
 
 def process_dataframe(df_all):
     """Process the concatenated dataframe with invoice logic and column filtering"""
-    # Add 'Invoice Payment' column based on debtor_name
+    # Add 'is_invoice_payment' column based on debtor_name
     invoice_exclude = ['ADYEN', 'U.S. BANK', 'Stripe', 'ELAVON', 'Adyen']
-    def is_invoice_payment(debtor_name):
-        if pd.isna(debtor_name):
-            return True
-        for excl in invoice_exclude:
-            if excl.lower() in str(debtor_name).lower():
-                return False
-        return True
     if 'debtor_name' in df_all.columns:
-        df_all['Invoice Payment'] = df_all['debtor_name'].apply(is_invoice_payment)
+        # Use vectorized string operations instead of apply
+        name_mask = df_all['debtor_name'].str.contains('|'.join(invoice_exclude), case=False, na=False)
+        df_all['is_invoice_payment'] = ~name_mask
     else:
-        df_all['Invoice Payment'] = True
+        df_all['is_invoice_payment'] = True
+    
+    # Set is_invoice_payment to False for DBIT transactions
+    if 'credit_debit' in df_all.columns:
+        df_all['is_invoice_payment'] = df_all['is_invoice_payment'] & (df_all['credit_debit'] != 'DBIT')
+    
+    # Set is_invoice_payment to False if debtor_address contains specific strings
+    if 'debtor_address' in df_all.columns:
+        address_mask = df_all['debtor_address'].str.contains('ELAVON|Stripe|ADYEN', case=False, na=False)
+        df_all['is_invoice_payment'] = df_all['is_invoice_payment'] & (~address_mask)
+    
+    # Set is_invoice_payment to False if description contains STRIPE
+    if 'description' in df_all.columns:
+        desc_mask = df_all['description'].str.contains('STRIPE', case=False, na=False)
+        df_all['is_invoice_payment'] = df_all['is_invoice_payment'] & (~desc_mask)
     
     # User-specified columns - only keep these specific columns
     preferred_order = [
@@ -181,7 +190,7 @@ def process_dataframe(df_all):
         'debtor_name', 'creditor_name', 'description', 'debtor_bank_bic',
         'debtor_bank_name', 'debtor_bank_country', 'account_iban', 'account_currency',
         'instructed_amount', 'transaction_amount', 'debtor_address',
-        'source_currency', 'target_currency', 'exchange_rate', 'Invoice Payment'
+        'source_currency', 'target_currency', 'exchange_rate', 'is_invoice_payment'
     ]
     
     # Add new columns for invoice extraction
